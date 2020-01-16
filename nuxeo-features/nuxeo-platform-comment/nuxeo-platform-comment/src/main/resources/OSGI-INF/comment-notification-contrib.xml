@@ -32,6 +32,7 @@
     <template name="baseComment" src="templates/baseComment.ftl" />
     <template name="commentAdded" src="templates/commentAdded.ftl" />
     <template name="commentUpdated" src="templates/commentUpdated.ftl" />
+    <template name="quotedComments" src="templates/quotedComments.ftl" />
   </extension>
 
   <extension

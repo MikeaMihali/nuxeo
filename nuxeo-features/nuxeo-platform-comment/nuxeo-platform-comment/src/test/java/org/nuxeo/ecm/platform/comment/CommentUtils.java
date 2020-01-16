@@ -30,6 +30,7 @@ import static org.nuxeo.ecm.platform.comment.api.CommentConstants.TOP_LEVEL_DOCU
 import static org.nuxeo.ecm.platform.comment.api.CommentEvents.COMMENT_ADDED;
 import static org.nuxeo.ecm.platform.comment.api.CommentEvents.COMMENT_REMOVED;
 import static org.nuxeo.ecm.platform.comment.workflow.utils.CommentsConstants.COMMENT_AUTHOR;
+import static org.nuxeo.ecm.platform.comment.workflow.utils.CommentsConstants.COMMENT_DOC_TYPE;
 import static org.nuxeo.ecm.platform.comment.workflow.utils.CommentsConstants.COMMENT_TEXT;
 
 import java.io.IOException;
@@ -41,6 +42,7 @@ import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -133,13 +135,21 @@ public class CommentUtils {
             Event event, String commentEventType) {
         URL url = CommentUtils.class.getResource("/templates/commentNotificationMail.txt");
         try {
-            String content = Files.readString(Paths.get(url.toURI()));
             var model = Map.of("COMMENT_AUTHOR", commentDocModel.getPropertyValue(COMMENT_AUTHOR), //
                     "COMMENT_ACTION", COMMENT_ADDED.equals(commentEventType) ? "added" : "updated", //
                     "COMMENTED_DOCUMENT", commentedDocModel.getName(), //
                     "COMMENT_DATE", EVENT_DATE_FORMAT.format(Date.from(Instant.ofEpochMilli(event.getTime()))), //
                     "COMMENT_TEXT", commentDocModel.getPropertyValue(COMMENT_TEXT), //
                     "COMMENT_SUBSCRIPTION_NAME", COMMENT_ADDED.equals(commentEventType) ? "New" : "Updated");
+            DocumentModel parentComment = (DocumentModel) event.getContext().getProperties().get(PARENT_COMMENT);
+            if (COMMENT_DOC_TYPE.equals(parentComment.getType())) {
+                url = CommentUtils.class.getResource("/templates/commentReplyNotificationMail.txt");
+                Map<String, Serializable> modelWithReplyInfos = new HashMap<>(model);
+                modelWithReplyInfos.put("PARENT_COMMENT_AUTHOR", parentComment.getPropertyValue("comment:author"));
+                modelWithReplyInfos.put("PARENT_COMMENT_TEXT", parentComment.getPropertyValue("comment:text"));
+                model = modelWithReplyInfos;
+            }
+            String content = Files.readString(Paths.get(url.toURI()));
             return StringUtils.expandVars(content, model);
         } catch (URISyntaxException | IOException e) {
             throw new NuxeoException(e);
