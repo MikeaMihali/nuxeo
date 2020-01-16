@@ -29,6 +29,7 @@ import static org.nuxeo.ecm.platform.comment.CommentUtils.checkReceivedMail;
 import static org.nuxeo.ecm.platform.comment.api.CommentEvents.COMMENT_ADDED;
 import static org.nuxeo.ecm.platform.comment.api.CommentEvents.COMMENT_REMOVED;
 import static org.nuxeo.ecm.platform.comment.api.CommentEvents.COMMENT_UPDATED;
+import static org.nuxeo.ecm.platform.comment.impl.AbstractCommentManager.COMMENT_ADDED_NOTIFICATION;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -108,7 +109,7 @@ public abstract class AbstractTestCommentNotification {
         // We subscribe to the creation document to check that we will not be notified about the comment creation as
         // document (see CommentCreationVeto), only the comment added, and the 'File' document creation
         captureAndVerifyCommentEventNotification(() -> {
-            Comment createdComment = createCommentAndAddSubscription("CommentAdded", "Creation");
+            Comment createdComment = createCommentAndAddSubscription(COMMENT_ADDED_NOTIFICATION, "Creation");
             return session.getDocument(new IdRef(createdComment.getId()));
         }, COMMENT_ADDED, DOCUMENT_CREATED);
     }
