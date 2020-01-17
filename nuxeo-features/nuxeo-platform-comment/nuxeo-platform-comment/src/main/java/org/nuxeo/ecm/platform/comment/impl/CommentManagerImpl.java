@@ -525,4 +525,5 @@ public class CommentManagerImpl extends AbstractCommentManager {
     public DocumentRef getCommentedDocumentRef(CoreSession session, DocumentModel commentDocumentModel) {
         throw new UnsupportedOperationException();
     }
+
 }

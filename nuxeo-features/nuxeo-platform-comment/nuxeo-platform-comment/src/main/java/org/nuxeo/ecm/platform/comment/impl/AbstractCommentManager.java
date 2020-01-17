@@ -25,6 +25,7 @@ import static java.util.Objects.requireNonNull;
 import static org.nuxeo.ecm.platform.comment.workflow.utils.CommentsConstants.COMMENT_AUTHOR;
 import static org.nuxeo.ecm.platform.comment.workflow.utils.CommentsConstants.COMMENT_PARENT_ID;
 import static org.nuxeo.ecm.platform.comment.workflow.utils.CommentsConstants.COMMENT_SCHEMA;
+import static org.nuxeo.ecm.platform.ec.notification.service.NotificationService.AUTOSUBSCRIBE_CONFIG_KEY;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -33,6 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.nuxeo.ecm.core.api.CoreSession;
@@ -54,8 +56,11 @@ import org.nuxeo.ecm.core.event.impl.DocumentEventContext;
 import org.nuxeo.ecm.platform.comment.api.Comment;
 import org.nuxeo.ecm.platform.comment.api.CommentConstants;
 import org.nuxeo.ecm.platform.comment.api.CommentManager;
+import org.nuxeo.ecm.platform.ec.notification.NotificationConstants;
+import org.nuxeo.ecm.platform.notification.api.NotificationManager;
 import org.nuxeo.ecm.platform.usermanager.UserManager;
 import org.nuxeo.runtime.api.Framework;
+import org.nuxeo.runtime.services.config.ConfigurationService;
 
 /**
  * @since 10.3
@@ -65,13 +70,6 @@ public abstract class AbstractCommentManager implements CommentManager {
     private static final Logger log = LogManager.getLogger(AbstractCommentManager.class);
 
     protected static final String COMMENTS_DIRECTORY = "Comments";
-
-    /**
-     * The name of the comment added notification differs from the event.
-     *
-     * @since 11.1
-     */
-    public static final String COMMENT_ADDED_NOTIFICATION = "CommentAdded";
 
     @Override
     public List<DocumentModel> getComments(DocumentModel docModel) {
@@ -140,9 +138,15 @@ public abstract class AbstractCommentManager implements CommentManager {
     }
 
     protected NuxeoPrincipal getAuthor(DocumentModel docModel) {
-        String[] contributors = (String[]) docModel.getProperty("dublincore", "contributors");
-        UserManager userManager = Framework.getService(UserManager.class);
-        return userManager.getPrincipal(contributors[0]);
+        String author = null;
+        if (docModel.hasSchema(COMMENT_SCHEMA)) {
+            // means annotation / comment
+            author = (String) docModel.getPropertyValue(COMMENT_AUTHOR);
+        } else if (StringUtils.isEmpty(author)) {
+            String[] contributors = (String[]) docModel.getProperty("dublincore", "contributors");
+            author = contributors[0];
+        }
+        return Framework.getService(UserManager.class).getPrincipal(author);
     }
 
     protected void setFolderPermissions(CoreSession session, DocumentModel documentModel) {
@@ -191,6 +195,83 @@ public abstract class AbstractCommentManager implements CommentManager {
 
         DocumentModel commentParent = session.getDocument(getCommentedDocumentRef(session, commentDocumentModel));
         notifyEvent(session, eventType, commentParent, commentDocumentModel);
+    }
+
+    /**
+     * Checks if a document has comments.
+     *
+     * @param session the core session
+     * @param document the document model who's comments are being counted
+     * @return {@code true}if comments were found, otherwise {@code false}
+     * @since 11.1
+     */
+    protected boolean hasComments(CoreSession session, DocumentModel document) {
+        // CommentManagerImpl doesn't support it.
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Checks if a document has comments from a particular user.
+     *
+     * @param session the core session
+     * @param document the document model who's comments are being counted
+     * @param author the name of the user who's comments are being counted
+     * @return {@code true} if comments by author were found, otherwise {@code false}
+     * @since 11.1
+     */
+    protected boolean hasCommentsByUser(CoreSession session, DocumentModel document, String author) {
+        // CommentManagerImpl doesn't support it.
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Handles autosubscription to comment notifications rules.
+     *
+     * @implSpec The default implementation autosubscribes top level document's author on first comment if
+     *           autosubscription is enabled. This relies on the implementation of the abstract hasComments method.<br/>
+     *           The default implementation autosubscribes comment author on his first comment on top level document if
+     *           autosubscription is enabled. This relies on the implementation of the abstract hasCommentsByUser method
+     * @param session the core session
+     * @param commentDocModel the comment
+     * @param document the document being commented
+     * @since 11.1
+     */
+    protected void handleNotificationAutoSubscriptions(CoreSession session, DocumentModel commentDocModel,
+            DocumentModel document) {
+        if (Framework.getService(ConfigurationService.class).isBooleanFalse(AUTOSUBSCRIBE_CONFIG_KEY)) {
+            log.trace("autosubscription to new comments is disabled");
+            return;
+        }
+
+        NuxeoPrincipal topLevelDocumentAuthor = getAuthor(document);
+        if (!hasComments(session, document)) {
+            // Document author is subscribed on first comment by anybody
+            subscribeToCommentNotifications(document, topLevelDocumentAuthor);
+
+        }
+
+        NuxeoPrincipal commentAuthor = getAuthor(commentDocModel);
+        if (topLevelDocumentAuthor.getName().equals(commentAuthor.getName())) {
+            // Document author is comment author. He doesn't need to be resubscribed
+            return;
+        }
+
+        if (!hasCommentsByUser(session, document, commentAuthor.getName())) {
+            // Comment author is writing his first comment on the document
+            subscribeToCommentNotifications(document, commentAuthor);
+        }
+    }
+
+    /**
+     * Subscribes a user to notifications on the document.
+     *
+     * @param document the document being commented
+     * @param user the user to subscribe to comment notifications
+     * @since 11.1
+     */
+    protected void subscribeToCommentNotifications(DocumentModel document, NuxeoPrincipal user) {
+        String subscriber = NotificationConstants.USER_PREFIX + user.getName();
+        Framework.getService(NotificationManager.class).addSubscriptions(subscriber, document, false, user);
     }
 
 }
