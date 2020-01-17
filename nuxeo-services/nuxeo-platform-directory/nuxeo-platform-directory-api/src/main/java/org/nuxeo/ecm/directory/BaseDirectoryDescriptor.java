@@ -24,8 +24,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.nuxeo.common.xmap.annotation.XNode;
 import org.nuxeo.common.xmap.annotation.XNodeList;
 import org.nuxeo.common.xmap.annotation.XObject;
@@ -39,7 +39,7 @@ import org.nuxeo.ecm.directory.api.DirectoryDeleteConstraint;
 @XObject(value = "directory")
 public class BaseDirectoryDescriptor implements Cloneable {
 
-    private static final Log log = LogFactory.getLog(BaseDirectoryDescriptor.class);
+    private static final Logger log = LogManager.getLogger(BaseDirectoryDescriptor.class);
 
     /**
      * How directory semi-"fulltext" searches are matched with a query string.
@@ -115,11 +115,11 @@ public class BaseDirectoryDescriptor implements Cloneable {
     public Boolean autoincrementIdField;
 
     public boolean isAutoincrementIdField() {
-        return autoincrementIdField == null ? AUTO_INCREMENT_ID_FIELD_DEFAULT : autoincrementIdField.booleanValue();
+        return autoincrementIdField == null ? AUTO_INCREMENT_ID_FIELD_DEFAULT : autoincrementIdField;
     }
 
     public void setAutoincrementIdField(boolean autoincrementIdField) {
-        this.autoincrementIdField = Boolean.valueOf(autoincrementIdField);
+        this.autoincrementIdField = autoincrementIdField;
     }
 
     @XNode("table")
@@ -199,8 +199,7 @@ public class BaseDirectoryDescriptor implements Cloneable {
         } else {
             sep = dataFileCharacterSeparator.charAt(0);
             if (dataFileCharacterSeparator.length() > 1) {
-                log.warn("More than one character found for character separator, will use the first one \"" + sep
-                        + "\"");
+                log.warn("More than one character found for character separator, will use the first one \"{}\"",sep);
             }
         }
         return sep;
@@ -222,19 +221,19 @@ public class BaseDirectoryDescriptor implements Cloneable {
     }
 
     public boolean isReadOnly() {
-        return readOnly == null ? READ_ONLY_DEFAULT : readOnly.booleanValue();
+        return readOnly == null ? READ_ONLY_DEFAULT : readOnly;
     }
 
     public void setReadOnly(boolean readOnly) {
-        this.readOnly = Boolean.valueOf(readOnly);
+        this.readOnly = readOnly;
     }
 
     public int getCacheTimeout() {
-        return cacheTimeout == null ? CACHE_TIMEOUT_DEFAULT : cacheTimeout.intValue();
+        return cacheTimeout == null ? CACHE_TIMEOUT_DEFAULT : cacheTimeout;
     }
 
     public int getCacheMaxSize() {
-        return cacheMaxSize == null ? CACHE_MAX_SIZE_DEFAULT : cacheMaxSize.intValue();
+        return cacheMaxSize == null ? CACHE_MAX_SIZE_DEFAULT : cacheMaxSize;
     }
 
     public SubstringMatchType getSubstringMatchType() {
@@ -244,7 +243,7 @@ public class BaseDirectoryDescriptor implements Cloneable {
         try {
             return SubstringMatchType.valueOf(substringMatchType);
         } catch (IllegalArgumentException e) {
-            log.error("Unknown value for <substringMatchType>: " + substringMatchType);
+            log.error("Unknown value for <substringMatchType>: {}", substringMatchType);
             return SUBSTRING_MATCH_TYPE_DEFAULT;
         }
     }
@@ -278,8 +277,9 @@ public class BaseDirectoryDescriptor implements Cloneable {
                                      .toArray(ReferenceDescriptor[]::new);
         }
         if (inverseReferences != null) {
-            clone.inverseReferences = Arrays.stream(inverseReferences).map(InverseReferenceDescriptor::clone).toArray(
-                    InverseReferenceDescriptor[]::new);
+            clone.inverseReferences = Arrays.stream(inverseReferences)
+                                            .map(InverseReferenceDescriptor::clone)
+                                            .toArray(InverseReferenceDescriptor[]::new);
         }
         return clone;
     }

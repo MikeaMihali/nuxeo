@@ -119,7 +119,7 @@ public interface Directory {
      * @return the matching reference implementation or null
      * @deprecated since 7.4, kept for compatibility with old code, use {@link #getReferences(String)} instead
      */
-    @Deprecated
+    @Deprecated(since = "7.4")
     Reference getReference(String referenceFieldName);
 
     /**
