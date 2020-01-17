@@ -25,6 +25,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -39,7 +40,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.nuxeo.common.utils.FileUtils;
 import org.nuxeo.directory.test.DirectoryFeature;
+import org.nuxeo.ecm.automation.client.OperationRequest;
+import org.nuxeo.ecm.automation.client.RemoteException;
+import org.nuxeo.ecm.automation.client.model.Blob;
+import org.nuxeo.ecm.automation.client.model.FileBlob;
 import org.nuxeo.ecm.core.api.DocumentModel;
 import org.nuxeo.ecm.core.api.DocumentModelList;
 import org.nuxeo.ecm.core.io.registry.MarshallerHelper;
@@ -78,6 +84,9 @@ public class DirectoryTest extends BaseTest {
 
     @Inject
     TransactionalFeature txFeature;
+
+    @Inject
+    org.nuxeo.ecm.automation.client.Session clientSession;
 
     private static final String TESTDIRNAME = "testdir";
 
@@ -435,4 +444,19 @@ public class DirectoryTest extends BaseTest {
         return MarshallerHelper.objectToJson(new DirectoryEntry(dirName, dirEntry), CtxBuilder.get());
     }
 
+    @Test
+    public void testLoadDirectoryFromCsv() throws Exception {
+        Blob blob = new FileBlob(FileUtils.getResourceFileFromContext("directories/country.csv"));
+        OperationRequest loadCsv = clientSession.newRequest("Directory.LoadFromCSV")
+                .set("directoryName", "country")
+                .set("dataLoadingPolicy", "error_on_duplicate")
+                .setInput(blob);
+        try {
+            loadCsv.execute();
+            fail();
+        } catch (RemoteException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("already exists in directory"));
+        }
+
+    }
 }
