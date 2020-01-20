@@ -36,7 +36,7 @@ public class BaseExport {
 
     String uuid;
 
-    protected boolean skipBlobs = true;
+    protected boolean skipBlobs = false;
 
     public static final String IODIR = "NX-Export-Import";
 
