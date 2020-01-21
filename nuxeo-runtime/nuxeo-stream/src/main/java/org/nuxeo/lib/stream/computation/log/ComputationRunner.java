@@ -203,11 +203,18 @@ public class ComputationRunner implements Runnable, RebalanceListener {
             try {
                 computation.destroy();
                 closeTailer();
-                log.debug(metadata.name() + ": Exited");
             } finally {
                 if (interrupted) {
                     Thread.currentThread().interrupt();
                 }
+            }
+            if (context.requireTerminate()) {
+                log.debug(metadata.name() + ": Terminated");
+            } else {
+                // Terminating because of unexpected error in the ComputationRunner code
+                log.warn(metadata.name() + ": Terminated");
+                globalFailureCount.inc();
+                failureCount.inc();
             }
         }
     }
